@@ -9,6 +9,11 @@ import okhttp3.OkHttpClient;
 
 public class BaseApplication extends ZApplication {
 
+    public static final String baseUrl = "127.0.0.1";
+    public static final  String loginUrl = baseUrl+"/login";
+    public  static final String lockUrl  = baseUrl+"/lock";
+    public  static  final String getStateUrl  = baseUrl + "/getState";
+
     public static OkHttpClient okHttpClient;
 
     @Override

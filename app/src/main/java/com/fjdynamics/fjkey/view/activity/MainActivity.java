@@ -2,14 +2,18 @@ package com.fjdynamics.fjkey.view.activity;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+import android.os.PersistableBundle;
+import android.support.annotation.Nullable;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -17,11 +21,11 @@ import android.widget.Toast;
 
 import com.fjdynamics.fjkey.R;
 import com.fjdynamics.fjkey.base.BaseApplication;
-import com.uuzuche.lib_zxing.activity.CaptureActivity;
 import com.uuzuche.lib_zxing.activity.CodeUtils;
 import com.xiasuhuei321.loadingdialog.view.LoadingDialog;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -36,7 +40,7 @@ import okhttp3.Response;
 public class MainActivity extends Activity implements View.OnClickListener {
 
     private Button btnOpen, btnClose;
-    private TextView tvMsg;
+    private TextView tvMsg ,tvHistory;
     private LinearLayout llOpen, llClose;
     private static final int REQUEST_CODE = 0x666;
     private static final String TAG = "MainActivity";
@@ -60,12 +64,15 @@ public class MainActivity extends Activity implements View.OnClickListener {
         llOpen = (LinearLayout) findViewById(R.id.ll_open);
         llClose = (LinearLayout) findViewById(R.id.ll_close);
 
-
         tvMsg = (TextView) findViewById(R.id.tv_msg);
+        tvHistory = (TextView) findViewById(R.id.tv_history);
+        tvHistory.setOnClickListener(this);
+//        Intent mIntent = getIntent();
+//        account = mIntent.getStringExtra("account");
+//        password = mIntent.getStringExtra("password");
 
-        Intent mIntent = getIntent();
-        account = mIntent.getStringExtra("account");
-        password = mIntent.getStringExtra("password");
+        account = new LoginActivity().getLocalName();
+        password = new LoginActivity().getLocalPassword();
         tvMsg.setText(account + "\n" + "欢迎使用");
     }
 
@@ -73,12 +80,14 @@ public class MainActivity extends Activity implements View.OnClickListener {
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_open:
-                if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, 1);
-                } else {
-                    Intent intent = new Intent(MainActivity.this, CaptureActivity.class);
-                    startActivityForResult(intent, REQUEST_CODE);
-                }
+//                 扫码二维码功能
+//                if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+//                    ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, 1);
+//                } else {
+//                    Intent intent = new Intent(MainActivity.this, CaptureActivity.class);
+//                    startActivityForResult(intent, REQUEST_CODE);
+//                }
+                showNotice();
                 break;
             case R.id.btn_close:
                 new AlertDialog.Builder(this)
@@ -94,6 +103,9 @@ public class MainActivity extends Activity implements View.OnClickListener {
                         })
                         .create()
                         .show();
+                break;
+            case R.id.tv_history:
+
                 break;
             default:
                 break;
@@ -114,7 +126,6 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 })
                 .create()
                 .show();
-
     }
 
 
@@ -132,7 +143,6 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 })
                 .create()
                 .show();
-
     }
 
     private void showConfirmParking() {
@@ -157,7 +167,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 .setMessage("即将关锁，请确定？")
                 .setPositiveButton("确定", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
-                        ocRequest(false, "close");
+                        ocRequest(false, "FJ666");
                     }
                 })
                 .setNegativeButton("取消", new DialogInterface.OnClickListener() {
@@ -201,27 +211,25 @@ public class MainActivity extends Activity implements View.OnClickListener {
         ld.show();
 
         RequestBody requestBody = new FormBody.Builder()
-                .add("carId", carId)
+                .add("action",isOpen ? "FJ666_1":"FJ666_0")
+                .add("userName" ,account)
+                .add("password",password)
                 .build();
 
         Request request = new Request.Builder()
-                .url("https://blog.csdn.net/u014031072/article/details/5392334866")
-//                .post(requestBody)
+                .url(BaseApplication.lockUrl)
                 .build();
 
         BaseApplication.okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 Log.e(TAG, isOpen ? "open" : "close" + "exception: " + e.getMessage());
-
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         ld.loadFailed();
-//                        ld.close();
                     }
                 });
-
                 e.printStackTrace();
             }
 
@@ -229,14 +237,10 @@ public class MainActivity extends Activity implements View.OnClickListener {
             public void onResponse(Call call, Response response) throws IOException {
                 String responseBodyData = response.body().string();
                 Log.d(TAG, isOpen ? "open" : "close" + "success:" + responseBodyData);
-
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-
                         ld.loadSuccess();
-//                        ld.close();
-
                         if (isOpen) {
                             // 开锁成功则显示关锁按钮
                             llOpen.setVisibility(View.GONE);
@@ -252,5 +256,39 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 });
             }
         });
+    }
+
+    // 用户须知
+    public void showNotice(){
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("电动车使用须知")
+                .setMessage(R.string.notice)
+                .setPositiveButton("继续开锁", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        ocRequest(true, "FJ666");
+                    }
+                })
+                .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                    }
+                })
+                .create();
+
+        dialog.show();
+
+        try {
+            Field mAlert = AlertDialog.class.getDeclaredField("mAlert");
+            mAlert.setAccessible(true);
+            Object mAlertController = mAlert.get(dialog);
+            Field mMessage = mAlertController.getClass().getDeclaredField("mMessageView");
+            mMessage.setAccessible(true);
+            TextView mMessageView = (TextView) mMessage.get(mAlertController);
+//            mMessageView.setTextColor(Color.BLUE);
+            mMessageView.setTextSize(14);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
     }
 }

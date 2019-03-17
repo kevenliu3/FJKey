@@ -14,11 +14,19 @@
         android:layout_marginTop="10dp"
         android:gravity="center"
         android:text="Hello Keven"
-        android:textSize="20sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:textSize="20sp" />
+
+    <TextView
+        android:layout_gravity="right"
+        android:id="@+id/tv_history"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="right"
+        android:text="使用记录"
+        android:textStyle="bold"
+        android:padding="10dp"
+        android:textSize="14sp" />
 
     <LinearLayout
         android:id="@+id/ll_open"

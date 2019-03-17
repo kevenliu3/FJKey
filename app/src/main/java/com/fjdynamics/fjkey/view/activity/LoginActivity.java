@@ -327,15 +327,14 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
         ld.setFailedText("加载失败");
         ld.show();
 
-
         RequestBody requestBody = new FormBody.Builder()
                 .add("account", account)
                 .add("password", password)
                 .build();
 
         Request request = new Request.Builder()
-                .url("https://blog.csdn.net/u014031072/article/details/53923348")
-//                .post(requestBody)
+                .url(BaseApplication.loginUrl)
+                .post(requestBody)
                 .build();
 
         BaseApplication.okHttpClient.newCall(request).enqueue(new Callback() {
@@ -346,7 +345,6 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
                     @Override
                     public void run() {
                         ld.loadFailed();
-//                        ld.close();
                     }
                 });
                 e.printStackTrace();
@@ -361,15 +359,14 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
                     @Override
                     public void run() {
                         ld.loadSuccess();
-//                        ld.close();
                     }
                 });
                 //记录下当前用户记住密码和自动登录的状态;
                 loadCheckBoxState();
                 // 跳转至开锁界面
                 Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                intent.putExtra("account", getAccount());
-                intent.putExtra("password", getPassword());
+//                intent.putExtra("account", getAccount());
+//                intent.putExtra("password", getPassword());
                 startActivity(intent);
                 finish();
             }
