@@ -10,8 +10,10 @@ import android.widget.*;
 
 import com.fjdynamics.fjkey.R;
 import com.fjdynamics.fjkey.base.BaseApplication;
+import com.fjdynamics.fjkey.bean.Record;
 import com.fjdynamics.fjkey.util.Base64Utils;
 import com.fjdynamics.fjkey.util.SharedPreferencesUtils;
+import com.google.gson.Gson;
 import com.xiasuhuei321.loadingdialog.view.LoadingDialog;
 
 import okhttp3.Call;
@@ -22,6 +24,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * 登录界面
@@ -33,7 +37,7 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
     private CheckBox checkBox_password, checkBox_login;
     private ImageView iv_see_password;
     private LoadingDialog ld;   // 显示正在加载的对话框
-    private static final String TAG = "LoginActivity";
+    private static final String TAG = "keven";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -185,7 +189,7 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
             return;
         }
 
-        setLoginBtnClickable(false);//点击登录后，设置登录按钮不可点击状态
+//        setLoginBtnClickable(false);//点击登录后，设置登录按钮不可点击状态
 
         loginRequest(getAccount(), getPassword());
     }
@@ -322,13 +326,13 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
     private void loginRequest(String account, String password) {
 
         ld = new LoadingDialog(LoginActivity.this);
-        ld.setLoadingText("加载中...");
-        ld.setSuccessText("加载完毕");
-        ld.setFailedText("加载失败");
+        ld.setLoadingText("登陆中...");
+        ld.setSuccessText("登陆成功");
+        ld.setFailedText("登陆失败");
         ld.show();
 
         RequestBody requestBody = new FormBody.Builder()
-                .add("account", account)
+                .add("userName", account)
                 .add("password", password)
                 .build();
 
@@ -344,6 +348,7 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        ld.setFailedText("网络异常");
                         ld.loadFailed();
                     }
                 });
@@ -353,22 +358,50 @@ public class LoginActivity extends Activity implements View.OnClickListener, Com
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+
+                // 1 成功  0 失败
                 String responseBodyData = response.body().string();
-                Log.d(TAG, "login success:" + responseBodyData);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ld.loadSuccess();
-                    }
-                });
-                //记录下当前用户记住密码和自动登录的状态;
-                loadCheckBoxState();
-                // 跳转至开锁界面
-                Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-//                intent.putExtra("account", getAccount());
-//                intent.putExtra("password", getPassword());
-                startActivity(intent);
-                finish();
+                Log.e("keven", "login is " + responseBodyData);
+
+
+                String[] array = new Gson().fromJson(responseBodyData, String[].class);
+                List<String> list = Arrays.asList(array);
+
+                String result = list.get(0);
+                String state = list.get(1);
+
+
+                Log.e("keven", "login result is " + result + " state is " + state);
+
+
+                if ("0".equals(result)) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ld.setFailedText("用户名或密码错误");
+                            ld.loadFailed();
+                        }
+                    });
+                    return;
+                }
+
+                if ("1".equals(result)) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ld.loadSuccess();
+                        }
+                    });
+                    //记录下当前用户记住密码和自动登录的状态;
+                    loadCheckBoxState();
+                    // 跳转至开锁界面
+                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                    intent.putExtra("account", getAccount());
+                    intent.putExtra("password", getPassword());
+                    intent.putExtra("state", state);
+                    startActivity(intent);
+                    finish();
+                }
             }
         });
     }

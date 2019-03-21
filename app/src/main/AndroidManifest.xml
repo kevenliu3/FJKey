@@ -29,5 +29,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".view.activity.MainActivity" />
+        <activity android:name=".view.activity.UserHistory" />
     </application>
 </manifest>

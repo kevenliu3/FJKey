@@ -34,17 +34,15 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-/**
- * 主页面
- */
+
 public class MainActivity extends Activity implements View.OnClickListener {
 
     private Button btnOpen, btnClose;
-    private TextView tvMsg ,tvHistory;
+    private TextView tvMsg, tvHistory;
     private LinearLayout llOpen, llClose;
     private static final int REQUEST_CODE = 0x666;
-    private static final String TAG = "MainActivity";
-    private static String account, password;
+    private static final String TAG = "keven";
+    private static String account, password, state;
     private LoadingDialog ld;   // 显示正在加载的对话框
 
     @Override
@@ -67,13 +65,27 @@ public class MainActivity extends Activity implements View.OnClickListener {
         tvMsg = (TextView) findViewById(R.id.tv_msg);
         tvHistory = (TextView) findViewById(R.id.tv_history);
         tvHistory.setOnClickListener(this);
-//        Intent mIntent = getIntent();
-//        account = mIntent.getStringExtra("account");
-//        password = mIntent.getStringExtra("password");
+        Intent mIntent = getIntent();
+        account = mIntent.getStringExtra("account");
+        password = mIntent.getStringExtra("password");
+        state = mIntent.getStringExtra("state");
 
-        account = new LoginActivity().getLocalName();
-        password = new LoginActivity().getLocalPassword();
-        tvMsg.setText(account + "\n" + "欢迎使用");
+        // 初始话开关们按钮状态
+        initBtnState();
+    }
+
+    private void initBtnState() {
+        if ("1".equals(state)) {
+            // 如果是开则显示关锁按钮
+            llOpen.setVisibility(View.GONE);
+            llClose.setVisibility(View.VISIBLE);
+            tvMsg.setText(account + "\n" + "请安全驾驶");
+        } else {
+            // 如果是关则显示开锁按钮
+            llClose.setVisibility(View.GONE);
+            llOpen.setVisibility(View.VISIBLE);
+            tvMsg.setText(account + "\n" + "欢迎使用");
+        }
     }
 
     @Override
@@ -105,7 +117,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
                         .show();
                 break;
             case R.id.tv_history:
-
+                startActivity(new Intent(this, UserHistory.class));
                 break;
             default:
                 break;
@@ -211,22 +223,24 @@ public class MainActivity extends Activity implements View.OnClickListener {
         ld.show();
 
         RequestBody requestBody = new FormBody.Builder()
-                .add("action",isOpen ? "FJ666_1":"FJ666_0")
-                .add("userName" ,account)
-                .add("password",password)
+                .add("open", isOpen ? "1" : "0")
+                .add("userName", account)
+                .add("password", password)
                 .build();
 
         Request request = new Request.Builder()
-                .url(BaseApplication.lockUrl)
+                .url(BaseApplication.openUrl)
+                .post(requestBody)
                 .build();
 
         BaseApplication.okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.e(TAG, isOpen ? "open" : "close" + "exception: " + e.getMessage());
+                Log.e(TAG, "openDoor exception: " + e.getMessage());
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        ld.setFailedText("网络异常");
                         ld.loadFailed();
                     }
                 });
@@ -235,23 +249,47 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                String responseBodyData = response.body().string();
-                Log.d(TAG, isOpen ? "open" : "close" + "success:" + responseBodyData);
+                final String responseBodyData = response.body().string();
+                Log.e("keven", "openDoor is " + responseBodyData);
+
+                // 用户名或密码错误
+                if ("-1".equals(responseBodyData)) {
+                    return;
+                }
+
+                // 开关门成功，插入数据库失败
+                if ("0".equals(responseBodyData)) {
+                    return;
+                }
+
+                // 开关门成功，插入数据库成功
+                if ("1".equals(responseBodyData)) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ld.loadSuccess();
+                            if (isOpen) {
+                                // 开锁成功则显示关锁按钮
+                                llOpen.setVisibility(View.GONE);
+                                llClose.setVisibility(View.VISIBLE);
+                                tvMsg.setText(account + "\n" + "请安全驾驶");
+                            } else {
+                                // 开锁成功则显示关锁按钮
+                                llClose.setVisibility(View.GONE);
+                                llOpen.setVisibility(View.VISIBLE);
+                                tvMsg.setText(account + "\n" + "欢迎使用");
+                            }
+                        }
+                    });
+                    return;
+                }
+
+                // 已有用户使用中
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        ld.loadSuccess();
-                        if (isOpen) {
-                            // 开锁成功则显示关锁按钮
-                            llOpen.setVisibility(View.GONE);
-                            llClose.setVisibility(View.VISIBLE);
-                            tvMsg.setText(account + "\n" + "请安全驾驶");
-                        } else {
-                            // 开锁成功则显示关锁按钮
-                            llClose.setVisibility(View.GONE);
-                            llOpen.setVisibility(View.VISIBLE);
-                            tvMsg.setText(account + "\n" + "欢迎使用");
-                        }
+                        ld.setFailedText(responseBodyData + "正在使用中...");
+                        ld.loadFailed();
                     }
                 });
             }
@@ -259,7 +297,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
     }
 
     // 用户须知
-    public void showNotice(){
+    public void showNotice() {
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("电动车使用须知")
                 .setMessage(R.string.notice)
@@ -283,7 +321,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
             Field mMessage = mAlertController.getClass().getDeclaredField("mMessageView");
             mMessage.setAccessible(true);
             TextView mMessageView = (TextView) mMessage.get(mAlertController);
-//            mMessageView.setTextColor(Color.BLUE);
+            mMessageView.setTextColor(Color.BLUE);
             mMessageView.setTextSize(14);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
